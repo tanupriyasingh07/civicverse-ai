@@ -23,10 +23,10 @@ def save_simulation_result(db: Session, result: SimulationResult) -> SimulationR
         summary_text=result.council_report.city_wide_summary,
         full_payload=payload,
     )
-    db.merge(record)
+    persisted = db.merge(record)
     db.commit()
-    db.refresh(record)
-    return record
+    db.refresh(persisted)
+    return persisted
 
 
 def list_simulation_history(db: Session, limit: int = 25) -> List[dict]:
