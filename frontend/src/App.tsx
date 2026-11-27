@@ -27,7 +27,6 @@ export function App() {
   const [selectedZoneId, setSelectedZoneId] = useState<string>('Z6');
   const [viewMode, setViewMode] = useState<'post' | 'pre'>('post');
   const [activeTab, setActiveTab] = useState<BottomTab>('agents');
-  const [isDrawerExpanded, setIsDrawerExpanded] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -163,7 +162,7 @@ export function App() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-y-auto">
         <aside className="w-88 shrink-0 space-y-3 overflow-y-auto border-r border-slate-800 bg-slate-950/95 p-3">
           <ScenarioConfigurator
             scenario={scenario}
@@ -189,7 +188,7 @@ export function App() {
             />
           </div>
 
-          <section className={`${isDrawerExpanded ? "h-[74vh]" : "h-72"} shrink-0 flex flex-col border-t border-slate-800 bg-slate-950 transition-all duration-200`}>
+          <section className="min-h-[460px] max-h-[82vh] overflow-y-auto shrink-0 flex flex-col border-t border-slate-800 bg-slate-950">
             <div className="flex items-center gap-1 border-b border-slate-800 px-3 py-1.5 text-xs">
               <button
                 onClick={() => setActiveTab('agents')}
@@ -223,13 +222,6 @@ export function App() {
                 }`}
               >
                 Temporal & What-If Lab
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsDrawerExpanded((prev) => !prev)}
-                className="ml-auto rounded-md border border-slate-700 bg-slate-800/90 px-2.5 py-1 text-[11px] font-semibold text-sky-300 hover:border-sky-500/50 hover:bg-slate-800"
-              >
-                {isDrawerExpanded ? 'Restore Split View' : 'Expand Panel'}
               </button>
               {result && (
                 <span className="ml-2 flex items-center gap-1 font-mono text-[11px] text-slate-400">
