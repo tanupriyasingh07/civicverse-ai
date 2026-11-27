@@ -6,7 +6,7 @@ interface HistoryReplayPanelProps {
   currentResult: SimulationResult | null;
   history: SimulationHistoryItem[];
   onLoadSimulation: (simulationId: string) => void | Promise<void>;
-  onReplayStepChange?: (step: number) => void;
+  onReplayStepChange?: (mode: 'pre' | 'post') => void;
 }
 
 export function HistoryReplayPanel({
@@ -52,10 +52,10 @@ export function HistoryReplayPanel({
         const payload = JSON.parse(msg.data);
         if (payload.type === 'timeline_event' && payload.data?.step) {
           setReplayIndex(payload.data.step);
-          onReplayStepChange?.(payload.data.step);
+          onReplayStepChange?.(payload.data.step >= 4 ? 'post' : 'pre');
         } else if (payload.type === 'simulation_complete') {
           setReplayIndex(events.length);
-          onReplayStepChange?.(events.length);
+          onReplayStepChange?.('post');
           setIsPlaying(false);
           setWsConnected(false);
         }
