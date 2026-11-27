@@ -230,7 +230,7 @@ export function App() {
               )}
               {activeTab === 'comparison' && <StrategyComparisonPanel comparison={comparison} />}
               {activeTab === 'whatif' && (
-                <WhatIfTemporalPanel result={simulation} scenario={scenario} strategy={strategy} />
+                <WhatIfTemporalPanel result={result} scenario={scenario} strategy={strategy} />
               )}
               {activeTab === 'history' && (
                 <HistoryReplayPanel

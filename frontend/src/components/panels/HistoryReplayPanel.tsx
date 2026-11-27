@@ -3,22 +3,24 @@ import { History, Play, Radio, RotateCcw } from 'lucide-react';
 import type { SimulationHistoryItem, SimulationResult } from '../../types/simulation';
 
 interface HistoryReplayPanelProps {
+  currentResult: SimulationResult | null;
   history: SimulationHistoryItem[];
-  activeSimulation: SimulationResult | null;
-  onLoadSimulation: (simulationId: string) => void;
+  onLoadSimulation: (simulationId: string) => void | Promise<void>;
+  onReplayStepChange?: (step: number) => void;
 }
 
 export function HistoryReplayPanel({
+  currentResult,
   history,
-  activeSimulation,
   onLoadSimulation,
+  onReplayStepChange,
 }: HistoryReplayPanelProps) {
   const [replayIndex, setReplayIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
-  const events = activeSimulation?.timeline_events ?? [];
+  const events = currentResult?.timeline_events ?? [];
 
   useEffect(() => {
     setReplayIndex(events.length);
@@ -27,10 +29,10 @@ export function HistoryReplayPanel({
       wsRef.current.close();
       wsRef.current = null;
     }
-  }, [activeSimulation?.simulation_id, events.length]);
+  }, [currentResult?.simulation_id, events.length]);
 
   const startWebSocketReplay = () => {
-    if (!activeSimulation) return;
+    if (!currentResult) return;
     if (wsRef.current) {
       wsRef.current.close();
     }
@@ -39,7 +41,7 @@ export function HistoryReplayPanel({
     setIsPlaying(true);
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//localhost:8001/ws/simulation/${activeSimulation.simulation_id}`;
+    const wsUrl = `${protocol}//localhost:8001/ws/simulation/${currentResult.simulation_id}`;
 
     try {
       const socket = new WebSocket(wsUrl);
@@ -50,8 +52,10 @@ export function HistoryReplayPanel({
         const payload = JSON.parse(msg.data);
         if (payload.type === 'timeline_event' && payload.data?.step) {
           setReplayIndex(payload.data.step);
+          onReplayStepChange?.(payload.data.step);
         } else if (payload.type === 'simulation_complete') {
           setReplayIndex(events.length);
+          onReplayStepChange?.(events.length);
           setIsPlaying(false);
           setWsConnected(false);
         }
@@ -83,7 +87,7 @@ export function HistoryReplayPanel({
             )}
             <button
               type="button"
-              disabled={!activeSimulation || isPlaying}
+              disabled={!currentResult || isPlaying}
               onClick={startWebSocketReplay}
               className="flex items-center gap-1 rounded bg-sky-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-sky-500 disabled:opacity-40"
             >
@@ -92,7 +96,7 @@ export function HistoryReplayPanel({
           </div>
         </div>
 
-        {!activeSimulation ? (
+        {!currentResult ? (
           <p className="py-6 text-center text-slate-400">Run or load a simulation to replay its execution timeline.</p>
         ) : (
           <div className="space-y-2">
