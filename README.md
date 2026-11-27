@@ -45,8 +45,7 @@ End-to-end deterministic verification covering physics bounds, council arbitrati
 
 ![Automated Test Verification](docs/media/06-test-verification.png)
 
-> **Recorded Walkthrough Video:** A complete 30-second end-to-end demonstration recording is stored at [`docs/media/civicverse-demo.mp4`](docs/media/civicverse-demo.mp4) and embedded directly in the repository showcase.
-
+> **Recorded Walkthrough Video:** [Watch Full System Walkthrough on YouTube](https://youtu.be/Y3DrIU2Rd0s)
 ---
 
 ## System Architecture
