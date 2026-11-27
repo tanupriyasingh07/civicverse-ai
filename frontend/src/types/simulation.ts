@@ -161,6 +161,7 @@ export interface SimulationResult {
   council_report: MultiAgentCouncilReport;
   metrics: SimulationMetrics;
   timeline_events: SimulationTimelineEvent[];
+  temporal_trajectory?: SimulationTickSnapshot[];
 }
 
 export interface StrategyComparisonReport {
@@ -184,4 +185,37 @@ export interface SimulationHistoryItem {
   allocation_fairness_jain: number;
   composite_score: number;
   summary_text: string;
+}
+
+export interface SimulationTickSnapshot {
+  tick_index: number;
+  hour: number;
+  avg_risk: number;
+  max_temp_c: number;
+  critical_zone_count: number;
+  protected_population: number;
+  avg_water_availability_pct: number;
+}
+
+export interface WhatIfModifications {
+  label: string;
+  inventory_multiplier: number;
+  temperature_offset_c: number;
+  water_scarcity_offset: number;
+  grid_stress_offset: number;
+  disable_asset_id?: string | null;
+  override_strategy?: AllocationStrategy | null;
+}
+
+export interface CounterfactualComparisonReport {
+  baseline: SimulationResult;
+  alternative: SimulationResult;
+  modifications: WhatIfModifications;
+  risk_reduction_delta: number;
+  final_risk_delta: number;
+  protected_pop_delta: number;
+  fairness_delta: number;
+  vuln_equity_delta: number;
+  cost_delta_lakhs: number;
+  tradeoff_verdict: string;
 }
