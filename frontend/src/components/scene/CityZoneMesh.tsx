@@ -1,5 +1,7 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
+import * as THREE from 'three';
 import type { InfrastructureAsset, RiskLevel, ZoneState } from '../../types/simulation';
 
 interface CityZoneMeshProps {
@@ -9,56 +11,72 @@ interface CityZoneMeshProps {
   onSelect: (zoneId: string) => void;
 }
 
-const RISK_COLORS: Record<RiskLevel, { base: string; emissive: string; badge: string }> = {
-  LOW: { base: '#10b981', emissive: '#059669', badge: 'bg-emerald-500/90 text-slate-950' },
-  MODERATE: { base: '#eab308', emissive: '#ca8a04', badge: 'bg-amber-400/90 text-slate-950' },
-  HIGH: { base: '#f97316', emissive: '#ea580c', badge: 'bg-orange-500/95 text-white' },
-  CRITICAL: { base: '#ef4444', emissive: '#dc2626', badge: 'bg-red-600/95 text-white' },
+const RISK_COLORS: Record<RiskLevel, string> = {
+  LOW: '#10b981',
+  MODERATE: '#f59e0b',
+  HIGH: '#f97316',
+  CRITICAL: '#ef4444',
 };
 
 export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMeshProps) {
   const [hovered, setHovered] = useState(false);
-  const palette = RISK_COLORS[zone.risk_level] || RISK_COLORS.LOW;
+  const beaconRef = useRef<THREE.Mesh>(null);
+  const dispatchRef = useRef<THREE.Mesh>(null);
+
+  const baseColor = RISK_COLORS[zone.risk_level] || '#38bdf8';
 
   const buildings = useMemo(() => {
-    const seedNum = zone.zone_id.charCodeAt(zone.zone_id.length - 1);
     const cols = 3;
     const rows = 3;
-    const list: { x: number; z: number; w: number; d: number; h: number; isTall: boolean }[] = [];
+    const list: Array<{ x: number; z: number; h: number; w: number; d: number }> = [];
+    const seedVal = zone.zone_id.charCodeAt(1) * 17;
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const idx = r * cols + c;
-        const hash = ((seedNum * 17 + idx * 31) % 100) / 100;
-        if (hash > zone.building_density + 0.15) continue;
-
-        const offsetX = (c - 1) * 4.8;
-        const offsetZ = (r - 1) * 4.8;
-        const isCommercial = zone.zone_type === 'commercial' || zone.zone_type === 'medical_district';
-        const baseH = isCommercial ? 3.5 + hash * 6.5 : 1.6 + hash * 3.8;
-
+        const hash = Math.sin(seedVal + r * 7 + c * 13) * 10000;
+        const frac = hash - Math.floor(hash);
+        const h = 0.7 + zone.building_density * 2.5 * (0.55 + frac * 0.85);
+        const offsetX = ((c - 1) * zone.width) / 3.4;
+        const offsetZ = ((r - 1) * zone.depth) / 3.4;
         list.push({
           x: offsetX,
           z: offsetZ,
-          w: 2.8 + (hash % 0.8),
-          d: 2.8 + ((1 - hash) % 0.8),
-          h: baseH,
-          isTall: baseH > 5.5,
+          h,
+          w: zone.width / 4.8,
+          d: zone.depth / 4.8,
         });
       }
     }
     return list;
-  }, [zone.zone_id, zone.building_density, zone.zone_type]);
+  }, [zone.zone_id, zone.building_density, zone.width, zone.depth]);
 
   const totalAssignedUnits =
     zone.assigned_resources.water_tankers +
     zone.assigned_resources.medical_units +
-    zone.assigned_resources.cooling_units;
+    zone.assigned_resources.cooling_units +
+    zone.assigned_resources.emergency_personnel;
+
+  const hasOverloadedAsset = assets.some(
+    (a) => !a.operational || a.current_load > a.capacity
+  );
+
+  const dispatchScale = Math.min(2.2, 0.65 + totalAssignedUnits / 45);
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (beaconRef.current) {
+      beaconRef.current.rotation.y = t * 1.4;
+      beaconRef.current.position.y = 3.2 + Math.sin(t * 2.4) * 0.14;
+    }
+    if (dispatchRef.current && totalAssignedUnits > 0) {
+      dispatchRef.current.rotation.y = -t * 1.8;
+    }
+  });
 
   return (
     <group position={[zone.grid_x, 0, zone.grid_z]}>
       <mesh
-        position={[0, 0.2, 0]}
+        position={[0, 0.12, 0]}
         receiveShadow
         onClick={(e) => {
           e.stopPropagation();
@@ -70,27 +88,27 @@ export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMes
         }}
         onPointerOut={() => setHovered(false)}
       >
-        <boxGeometry args={[zone.width, 0.4, zone.depth]} />
+        <boxGeometry args={[zone.width, 0.24, zone.depth]} />
         <meshStandardMaterial
-          color={palette.base}
-          emissive={palette.emissive}
-          emissiveIntensity={isSelected ? 0.55 : hovered ? 0.35 : 0.18}
-          roughness={0.45}
+          color={baseColor}
+          emissive={baseColor}
+          emissiveIntensity={isSelected ? 0.45 : hovered ? 0.3 : 0.15}
+          roughness={0.55}
           metalness={0.2}
         />
       </mesh>
 
-      {(isSelected || hovered) && (
-        <mesh position={[0, 0.45, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[zone.width * 0.62, zone.width * 0.67, 4]} />
-          <meshBasicMaterial color={isSelected ? '#38bdf8' : '#e2e8f0'} />
+      {isSelected && (
+        <mesh position={[0, 0.26, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[Math.max(zone.width, zone.depth) * 0.56, Math.max(zone.width, zone.depth) * 0.63, 32]} />
+          <meshBasicMaterial color="#38bdf8" side={THREE.DoubleSide} />
         </mesh>
       )}
 
-      {buildings.map((b, i) => (
+      {buildings.map((b, idx) => (
         <mesh
-          key={i}
-          position={[b.x, 0.4 + b.h / 2, b.z]}
+          key={idx}
+          position={[b.x, 0.24 + b.h / 2, b.z]}
           castShadow
           receiveShadow
           onClick={(e) => {
@@ -100,64 +118,60 @@ export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMes
         >
           <boxGeometry args={[b.w, b.h, b.d]} />
           <meshStandardMaterial
-            color={b.isTall ? '#334155' : '#1e293b'}
-            emissive={palette.emissive}
-            emissiveIntensity={0.08}
-            roughness={0.35}
-            metalness={0.65}
+            color={isSelected ? '#e2e8f0' : '#475569'}
+            emissive={baseColor}
+            emissiveIntensity={0.14}
+            roughness={0.45}
+            metalness={0.35}
           />
         </mesh>
       ))}
 
-      {assets.map((asset, idx) => {
-        const beaconColor =
-          asset.asset_type === 'hospital'
-            ? '#38bdf8'
-            : asset.asset_type === 'water_station'
-            ? '#06b6d4'
-            : asset.asset_type === 'emergency_station'
-            ? '#f43f5e'
-            : '#a855f7';
-        return (
-          <group key={asset.asset_id} position={[-6 + idx * 4, 0.4, 6.2]}>
-            <mesh position={[0, 2.5, 0]}>
-              <cylinderGeometry args={[0.35, 0.55, 5, 12]} />
-              <meshStandardMaterial color={beaconColor} emissive={beaconColor} emissiveIntensity={0.6} />
-            </mesh>
-            <mesh position={[0, 5.4, 0]}>
-              <sphereGeometry args={[0.6, 16, 16]} />
-              <meshBasicMaterial color={beaconColor} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {totalAssignedUnits > 0 && (
-        <mesh position={[6.2, 1.3, -6.2]}>
-          <octahedronGeometry args={[0.85, 0]} />
-          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.85} />
+      {assets.length > 0 && (
+        <mesh ref={beaconRef} position={[0, 3.2, 0]}>
+          <octahedronGeometry args={[0.32, 0]} />
+          <meshStandardMaterial
+            color={hasOverloadedAsset ? '#ef4444' : '#38bdf8'}
+            emissive={hasOverloadedAsset ? '#dc2626' : '#0284c7'}
+            emissiveIntensity={hasOverloadedAsset ? 1.1 : 0.75}
+          />
         </mesh>
       )}
 
-      <Html position={[0, 7.2, 0]} center distanceFactor={65} zIndexRange={[10, 0]}>
-        <button
+      {totalAssignedUnits > 0 && (
+        <mesh
+          ref={dispatchRef}
+          position={[zone.width * 0.28, 1.35 * dispatchScale, zone.depth * 0.28]}
+          scale={[dispatchScale, dispatchScale, dispatchScale]}
+        >
+          <cylinderGeometry args={[0.16, 0.34, 1.4, 8]} />
+          <meshStandardMaterial
+            color="#34d399"
+            emissive="#10b981"
+            emissiveIntensity={0.85}
+          />
+        </mesh>
+      )}
+
+      <Html position={[0, 4.1, 0]} center distanceFactor={28}>
+        <div
           onClick={() => onSelect(zone.zone_id)}
-          className={`flex flex-col items-center rounded-md border px-2.5 py-1 text-left shadow-lg backdrop-blur-md transition ${
+          className={`cursor-pointer select-none whitespace-nowrap rounded-md border px-2 py-0.5 text-[10px] font-semibold shadow-lg backdrop-blur-sm transition ${
             isSelected
-              ? 'border-sky-400 bg-slate-900/95 ring-2 ring-sky-400/50'
-              : 'border-slate-700/80 bg-slate-950/85 hover:border-slate-500'
+              ? 'border-sky-400 bg-slate-900/95 text-sky-200'
+              : 'border-slate-700/80 bg-slate-950/85 text-slate-200 hover:border-slate-500'
           }`}
         >
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold text-white">{zone.zone_id}</span>
-            <span className={`rounded px-1.5 py-0.2 text-[9px] font-extrabold ${palette.badge}`}>
-              {zone.risk_level}
-            </span>
-          </div>
-          <span className="whitespace-nowrap text-[10px] font-medium text-slate-300">
-            {zone.ambient_temp_c.toFixed(1)}°C • Risk {zone.risk_score.toFixed(0)}
+          <span>{zone.zone_id}: {zone.name}</span>
+          <span className="ml-1.5 font-mono text-[9px] text-amber-300">
+            {zone.risk_score.toFixed(0)}
           </span>
-        </button>
+          {totalAssignedUnits > 0 && (
+            <span className="ml-1 rounded bg-emerald-500/20 px-1 font-mono text-[9px] text-emerald-300">
+              +{totalAssignedUnits}u
+            </span>
+          )}
+        </div>
       </Html>
     </group>
   );

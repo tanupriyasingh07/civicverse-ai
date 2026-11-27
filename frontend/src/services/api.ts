@@ -5,6 +5,8 @@
   SimulationHistoryItem,
   SimulationResult,
   StrategyComparisonReport,
+  WhatIfModifications,
+  CounterfactualComparisonReport,
 } from '../types/simulation';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
@@ -42,3 +44,18 @@ export const civicApi = {
   getHistory: (limit = 20) => apiFetch<{ runs: SimulationHistoryItem[] }>(`/api/simulations/history?limit=${limit}`),
   getSimulation: (simulationId: string) => apiFetch<SimulationResult>(`/api/simulations/${simulationId}`),
 };
+
+export async function runWhatIf(
+  scenario: HeatwaveScenarioConfig,
+  strategy: AllocationStrategy,
+  modifications: WhatIfModifications
+): Promise<CounterfactualComparisonReport> {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+  const res = await fetch(`${baseUrl}/api/simulations/what-if`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scenario, strategy, modifications }),
+  });
+  if (!res.ok) throw new Error('What-if simulation failed');
+  return res.json();
+}

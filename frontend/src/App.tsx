@@ -14,6 +14,7 @@ import { ScenarioConfigurator } from './components/panels/ScenarioConfigurator';
 import { ZoneInspectorPanel } from './components/panels/ZoneInspectorPanel';
 import { AgentCouncilPanel } from './components/panels/AgentCouncilPanel';
 import { StrategyComparisonPanel } from './components/analytics/StrategyComparisonPanel';
+import { WhatIfTemporalPanel } from './components/analytics/WhatIfTemporalPanel';
 import { HistoryReplayPanel } from './components/panels/HistoryReplayPanel';
 
 type BottomTab = 'agents' | 'comparison' | 'history';
@@ -228,6 +229,9 @@ export function App() {
                 />
               )}
               {activeTab === 'comparison' && <StrategyComparisonPanel comparison={comparison} />}
+              {activeTab === 'whatif' && (
+                <WhatIfTemporalPanel result={simulation} scenario={scenario} strategy={strategy} />
+              )}
               {activeTab === 'history' && (
                 <HistoryReplayPanel
                   currentResult={result}
