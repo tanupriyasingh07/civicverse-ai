@@ -57,8 +57,7 @@ def get_single_zone(zone_id: str):
     city = create_default_city()
     for zone in city.zones:
         if zone.zone_id.lower() == zone_id.lower():
-            assets = [a for a in city.infrastructure if a.zone_id == zone.zone_id]
-            return {"zone": zone, "infrastructure": assets}
+            return zone
     raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
 
 
@@ -111,6 +110,17 @@ def get_simulation_details(simulation_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Simulation '{simulation_id}' not found")
     cache_service.set_json(f"sim:{simulation_id}", record.model_dump(mode="json"))
     return record
+
+
+@router.get("/api/simulations/{simulation_id}/decisions")
+def get_simulation_decisions(simulation_id: str, db: Session = Depends(get_db)):
+    result = get_simulation_details(simulation_id, db)
+    return {
+        "simulation_id": result.simulation_id,
+        "strategy": result.strategy,
+        "detected_conflicts": result.council_report.detected_conflicts,
+        "decisions": result.council_report.authority_directives,
+    }
 
 
 @router.post("/api/simulations/compare", response_model=StrategyComparisonReport)
