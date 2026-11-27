@@ -75,7 +75,7 @@ End-to-end deterministic verification covering physics bounds, council arbitrati
 |  | What-If Simulator     |  | Run & Replay Store    |  | Replay Broadcaster    |  |
 |  +-----------------------+  +-----------------------+  +-----------------------+  |
 +-----------------------------------------------------------------------------------+
-
+```
 ---
 
 ## Core Engineering Modules
@@ -125,3 +125,62 @@ python -m venv .venv
 
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8001
+
+```
+Interactive API documentation is available at `[http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)`.
+
+### 2. Frontend Setup (React + TypeScript + Three.js)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open `http://localhost:5174` in your browser.
+
+### 3. Running Automated Tests
+```bash
+cd backend
+pytest tests -v
+```
+
+---
+
+## Project Structure
+
+```text
+civicverse-ai/
+├── backend/
+│   ├── app/
+│   │   ├── api/            # REST endpoints & WebSocket replay routes
+│   │   ├── core/           # Configuration & CORS settings
+│   │   ├── db/             # SQLAlchemy models & session management
+│   │   ├── schemas/        # Pydantic v2 domain models
+│   │   ├── services/       # Physics, Agent Council, Optimizer, Temporal & What-If engines
+│   │   └── main.py         # FastAPI application entrypoint
+│   ├── tests/              # Comprehensive pytest verification suite (16 tests)
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── api/            # Typed REST & WebSocket client
+│   │   ├── components/     # CityTwin3D, AgentCouncilPanel, StrategyComparisonPanel, WhatIfTemporalPanel, HistoryReplayPanel
+│   │   ├── types/          # TypeScript domain interfaces
+│   │   └── App.tsx         # Main command center & analytics workspace
+│   └── package.json
+├── docs/
+│   └── media/              # Verified application screenshots & demo video
+├── docker-compose.yml
+├── LICENSE
+├── NOTICE
+└── README.md
+```
+
+---
+
+## Authorship, Ownership & Anti-Plagiarism Notice
+
+**Copyright (c) 2026 Tanupriya Singh (`@tanupriyasingh07`). All Rights Reserved.**
+
+This repository, including its architecture, simulation algorithms, multi-agent arbitration logic, 3D spatial twin interface, documentation, and visual media assets, is the original intellectual property of **Tanupriya Singh**.
+
+- **Unauthorized copying, re-uploading, redistribution, or submission of this codebase or its visual assets as another individual's work is strictly prohibited.**
+- Any permitted academic reference or evaluation must retain explicit attribution to **Tanupriya Singh** and link directly to the canonical repository: `[https://github.com/tanupriyasingh07/civicverse-ai](https://github.com/tanupriyasingh07/civicverse-ai)`.
