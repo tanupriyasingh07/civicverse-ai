@@ -1,4 +1,4 @@
-﻿import uuid
+import uuid
 from datetime import datetime, timezone
 from typing import Dict, List
 from pydantic import BaseModel
@@ -57,7 +57,6 @@ class SimulationEngine:
         sim_id = simulation_id or f"SIM-{uuid.uuid4().hex[:10].upper()}"
         events: List[SimulationTimelineEvent] = []
 
-        # 1. Load baseline city
         base_city = create_default_city()
         events.append(
             SimulationTimelineEvent(
@@ -68,7 +67,6 @@ class SimulationEngine:
             )
         )
 
-        # 2-4. Apply crisis & evaluate initial risk
         stressed_city = apply_heatwave_conditions(base_city, cfg)
         crisis_city = evaluate_city_risk(stressed_city)
         events.append(
@@ -76,11 +74,10 @@ class SimulationEngine:
                 step=2,
                 phase="CRISIS_ASSESSMENT",
                 title="Heatwave Impact & Risk Computed",
-                detail=f"Applied {cfg.base_temperature_c}°C heatwave ({cfg.duration_hours}h). City mean risk: {crisis_city.average_risk_score}/100.",
+                detail=f"Applied {cfg.base_temperature_c}?C heatwave ({cfg.duration_hours}h). City mean risk: {crisis_city.average_risk_score}/100.",
             )
         )
 
-        # 5-7. Multi-agent analysis & City Authority deliberation
         council_report = self.authority_agent.deliberate(crisis_city, strategy=strategy)
         events.append(
             SimulationTimelineEvent(
@@ -91,20 +88,19 @@ class SimulationEngine:
             )
         )
 
-        # 8. Constrained resource allocation
-        allocated_city, unallocated, _ = allocate_constrained_resources(
+        allocated_city, unallocated, _, alloc_notes = allocate_constrained_resources(
             crisis_city, council_report.authority_directives, strategy
         )
+        note_suffix = f" ({alloc_notes[0]})" if alloc_notes else ""
         events.append(
             SimulationTimelineEvent(
                 step=4,
                 phase="RESOURCE_ALLOCATION",
                 title="Constrained Resource Dispatch",
-                detail=f"Dispatched emergency units under '{strategy.value}' respecting finite inventory & safety floors.",
+                detail=f"Dispatched emergency units under '{strategy.value}' respecting finite inventory & safety floors.{note_suffix}",
             )
         )
 
-        # 9-11. Apply intervention effects & compute evaluation metrics
         final_city = apply_intervention_effects(allocated_city)
         metrics = evaluate_simulation_outcomes(crisis_city, final_city, unallocated)
         events.append(
@@ -149,7 +145,7 @@ class SimulationEngine:
         best_res = results[best_key]
 
         summary = (
-            f"Under {cfg.base_temperature_c}°C ({cfg.duration_hours}h), '{best_key}' achieved the highest "
+            f"Under {cfg.base_temperature_c}?C ({cfg.duration_hours}h), '{best_key}' achieved the highest "
             f"composite score ({best_res.metrics.composite_score}/100) with {best_res.metrics.risk_reduction_pct}% "
             f"risk reduction, {best_res.metrics.population_protected:,} residents protected, and "
             f"{best_res.metrics.allocation_fairness_jain} Jain fairness index."
