@@ -11,7 +11,7 @@ from app.history.repository import (
 )
 from app.scenarios.heatwave import HeatwaveScenarioConfig
 from app.schemas.agents import AllocationStrategy
-from app.services.cache import get_cached_simulation, set_cached_simulation
+from app.services.cache import cache_service
 from app.simulation.city_generator import create_default_city
 from app.simulation.engine import (
     CounterfactualComparisonReport,
@@ -22,6 +22,7 @@ from app.simulation.engine import (
 )
 
 router = APIRouter()
+ws_router = APIRouter()
 engine = SimulationEngine()
 
 
@@ -80,7 +81,7 @@ def list_available_scenarios():
 def run_simulation(request: RunSimulationRequest, db: Session = Depends(get_db)):
     result = engine.run_simulation(scenario=request.scenario, strategy=request.strategy)
     save_simulation_result(db, result)
-    set_cached_simulation(result.simulation_id, result.model_dump(mode="json"))
+    cache_service.set_json(f"sim:{result.simulation_id}", result.model_dump(mode="json"))
     return result
 
 
@@ -101,14 +102,14 @@ def get_simulation_history(limit: int = 25, db: Session = Depends(get_db)):
 
 @router.get("/api/simulations/{simulation_id}", response_model=SimulationResult)
 def get_simulation_details(simulation_id: str, db: Session = Depends(get_db)):
-    cached = get_cached_simulation(simulation_id)
+    cached = cache_service.get_json(f"sim:{simulation_id}")
     if cached:
         return SimulationResult.model_validate(cached)
 
     record = get_simulation_by_id(db, simulation_id)
     if not record:
         raise HTTPException(status_code=404, detail=f"Simulation '{simulation_id}' not found")
-    set_cached_simulation(simulation_id, record.model_dump(mode="json"))
+    cache_service.set_json(f"sim:{simulation_id}", record.model_dump(mode="json"))
     return record
 
 
@@ -117,7 +118,7 @@ def compare_simulation_strategies(request: CompareStrategiesRequest, db: Session
     report = engine.compare_strategies(scenario=request.scenario)
     for sim_res in report.results_by_strategy.values():
         save_simulation_result(db, sim_res)
-        set_cached_simulation(sim_res.simulation_id, sim_res.model_dump(mode="json"))
+        cache_service.set_json(f"sim:{sim_res.simulation_id}", sim_res.model_dump(mode="json"))
     return report
 
 
@@ -134,7 +135,7 @@ def replay_simulation(simulation_id: str, db: Session = Depends(get_db)):
     }
 
 
-@router.websocket("/ws/simulation/{simulation_id}")
+@ws_router.websocket("/ws/simulation/{simulation_id}")
 async def simulation_stream(websocket: WebSocket, simulation_id: str, db: Session = Depends(get_db)):
     await websocket.accept()
     try:
