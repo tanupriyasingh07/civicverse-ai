@@ -1,4 +1,4 @@
-﻿import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Award } from 'lucide-react';
 import type { StrategyComparisonReport } from '../../types/simulation';
 
@@ -22,6 +22,7 @@ export function StrategyComparisonPanel({ comparison }: StrategyComparisonPanelP
     riskReduction: res.metrics.risk_reduction_pct,
     protectedPct: res.metrics.population_protected_pct,
     fairnessPct: Math.round(res.metrics.allocation_fairness_jain * 100),
+    vulnEquityPct: Math.round((res.metrics.vulnerability_outcome_equity ?? res.metrics.allocation_fairness_jain) * 100),
     unmetPct: res.metrics.unmet_demand_pct,
     costLakhs: res.metrics.estimated_cost_inr_lakhs,
     protectedPop: res.metrics.population_protected,
@@ -39,7 +40,6 @@ export function StrategyComparisonPanel({ comparison }: StrategyComparisonPanelP
         </div>
       </div>
 
-      {/* Multi-Metric Bar Chart */}
       <div className="h-56 w-full rounded-xl border border-slate-800 bg-slate-900/90 p-3">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows}>
@@ -52,12 +52,12 @@ export function StrategyComparisonPanel({ comparison }: StrategyComparisonPanelP
             <Legend wrapperStyle={{ fontSize: '11px' }} />
             <Bar dataKey="compositeScore" name="Composite Score" fill="#38bdf8" radius={[4, 4, 0, 0]} />
             <Bar dataKey="riskReduction" name="Risk Reduction %" fill="#10b981" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="vulnEquityPct" name="Vuln. Outcome Equity %" fill="#a855f7" radius={[4, 4, 0, 0]} />
             <Bar dataKey="fairnessPct" name="Jain Fairness %" fill="#f59e0b" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Quantitative Comparison Table */}
       <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/90">
         <table className="w-full text-left text-[11px]">
           <thead className="border-b border-slate-800 bg-slate-950 text-slate-400">
@@ -67,6 +67,7 @@ export function StrategyComparisonPanel({ comparison }: StrategyComparisonPanelP
               <th className="px-3 py-2">Risk Drop</th>
               <th className="px-3 py-2">Protected Pop</th>
               <th className="px-3 py-2">Jain Fairness</th>
+              <th className="px-3 py-2">Vuln. Equity</th>
               <th className="px-3 py-2">Unmet Demand</th>
               <th className="px-3 py-2">Est. Cost</th>
             </tr>
@@ -82,8 +83,9 @@ export function StrategyComparisonPanel({ comparison }: StrategyComparisonPanelP
                 <td className="px-3 py-2 font-mono text-emerald-400">{r.riskReduction}%</td>
                 <td className="px-3 py-2 font-mono">{r.protectedPop.toLocaleString()}</td>
                 <td className="px-3 py-2 font-mono text-amber-300">{(r.fairnessPct / 100).toFixed(2)}</td>
+                <td className="px-3 py-2 font-mono text-purple-300">{(r.vulnEquityPct / 100).toFixed(2)}</td>
                 <td className="px-3 py-2 font-mono text-rose-300">{r.unmetPct}%</td>
-                <td className="px-3 py-2 font-mono">₹{r.costLakhs}L</td>
+                <td className="px-3 py-2 font-mono">?{r.costLakhs}L</td>
               </tr>
             ))}
           </tbody>

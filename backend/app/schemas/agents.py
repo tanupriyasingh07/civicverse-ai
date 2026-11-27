@@ -1,4 +1,4 @@
-﻿from enum import Enum
+from enum import Enum
 from typing import Dict, List
 from pydantic import BaseModel, Field
 from app.schemas.city import ResourceBundle, RiskLevel
@@ -33,6 +33,16 @@ class AgentAssessment(BaseModel):
     executive_summary: str
 
 
+class AgentConflictRecord(BaseModel):
+    zone_id: str
+    zone_name: str
+    fire_urgency: float
+    infra_urgency: float
+    divergence_delta: float
+    winning_domain: str
+    arbitration_reason: str
+
+
 class ZoneDecisionRecord(BaseModel):
     decision_id: str
     zone_id: str
@@ -52,6 +62,7 @@ class MultiAgentCouncilReport(BaseModel):
     strategy: AllocationStrategy
     fire_emergency_assessment: AgentAssessment
     infrastructure_assessment: AgentAssessment
+    detected_conflicts: List[AgentConflictRecord]
     authority_directives: List[ZoneDecisionRecord]
     city_wide_summary: str
     strategy_tradeoff_explanation: str

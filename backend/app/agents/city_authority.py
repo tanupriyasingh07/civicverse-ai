@@ -1,6 +1,8 @@
-﻿from app.agents.fire_emergency import FireEmergencyAgent
+from typing import Dict, List, Tuple
+from app.agents.fire_emergency import FireEmergencyAgent
 from app.agents.infrastructure import InfrastructureAgent
 from app.schemas.agents import (
+    AgentConflictRecord,
     AllocationStrategy,
     MultiAgentCouncilReport,
     ZoneDecisionRecord,
@@ -8,99 +10,172 @@ from app.schemas.agents import (
 from app.schemas.city import CityState, ResourceBundle, ZoneState
 
 
+ALTERNATIVE_POLICY_MAP = {
+    AllocationStrategy.BALANCED_PRIORITY: AllocationStrategy.RISK_PRIORITY,
+    AllocationStrategy.RISK_PRIORITY: AllocationStrategy.VULNERABILITY_PRIORITY,
+    AllocationStrategy.VULNERABILITY_PRIORITY: AllocationStrategy.POPULATION_PRIORITY,
+    AllocationStrategy.POPULATION_PRIORITY: AllocationStrategy.BALANCED_PRIORITY,
+}
+
+
 class CityAuthorityAgent:
-    agent_id = "agent_city_authority_03"
-    agent_name = "City Emergency Authority Coordinator"
+    """
+    Consolidates Fire/Emergency and Infrastructure agent reports, arbitrates
+    inter-agent priority conflicts, and computes counterfactual policy rank deltas.
+    """
 
     def __init__(self) -> None:
         self.fire_agent = FireEmergencyAgent()
         self.infra_agent = InfrastructureAgent()
 
-    def _compute_strategy_priority(
+    def _compute_priority_score(
         self,
         zone: ZoneState,
         fire_urgency: float,
         infra_urgency: float,
-        max_population: int,
+        max_pop: int,
         strategy: AllocationStrategy,
     ) -> float:
-        pop_norm = (zone.population / max(1, max_population)) * 100.0
+        pop_norm = (zone.population / max(1, max_pop)) * 100.0
         vuln_norm = zone.vulnerability_index * 100.0
-        joint_agent_score = (fire_urgency * 0.55) + (infra_urgency * 0.45)
 
         if strategy == AllocationStrategy.POPULATION_PRIORITY:
-            return round((pop_norm * 0.70) + (zone.risk_score * 0.30), 2)
+            score = (0.55 * pop_norm) + (0.25 * zone.risk_score) + (0.10 * fire_urgency) + (0.10 * infra_urgency)
+        elif strategy == AllocationStrategy.RISK_PRIORITY:
+            score = (0.55 * zone.risk_score) + (0.25 * fire_urgency) + (0.15 * infra_urgency) + (0.05 * vuln_norm)
+        elif strategy == AllocationStrategy.VULNERABILITY_PRIORITY:
+            score = (0.50 * vuln_norm) + (0.25 * zone.risk_score) + (0.15 * fire_urgency) + (0.10 * pop_norm)
+        else:
+            score = (
+                (0.35 * zone.risk_score)
+                + (0.25 * vuln_norm)
+                + (0.20 * ((fire_urgency + infra_urgency) / 2.0))
+                + (0.20 * pop_norm)
+            )
+        return round(score, 2)
+
+    def _strategy_explanation(self, strategy: AllocationStrategy) -> str:
+        if strategy == AllocationStrategy.POPULATION_PRIORITY:
+            return (
+                "Prioritizes high-population districts to maximize absolute headcount coverage; "
+                "trade-off: smaller, high-vulnerability pockets may experience delayed relief."
+            )
         if strategy == AllocationStrategy.RISK_PRIORITY:
-            return round((zone.risk_score * 0.75) + (joint_agent_score * 0.25), 2)
+            return (
+                "Targets zones with the highest composite hazard score first to suppress acute heat mortality; "
+                "trade-off: moderate-risk zones with fragile grids receive residual capacity."
+            )
         if strategy == AllocationStrategy.VULNERABILITY_PRIORITY:
-            return round((vuln_norm * 0.65) + (zone.risk_score * 0.35), 2)
-        # BALANCED_PRIORITY (Risk + Vulnerability + Infrastructure + Population aware)
-        return round(
-            (zone.risk_score * 0.35)
-            + (vuln_norm * 0.25)
-            + (infra_urgency * 0.20)
-            + (pop_norm * 0.20),
-            2,
+            return (
+                "Centers socio-economic vulnerability and elderly exposure to maximize outcome equity; "
+                "trade-off: denser commercial hubs with lower vulnerability scores wait for secondary waves."
+            )
+        return (
+            "Balances hazard severity (35%), vulnerability (25%), specialist urgency (20%), and population scale (20%) "
+            "to avoid single-metric blind spots."
         )
 
     def deliberate(
-        self, city: CityState, strategy: AllocationStrategy = AllocationStrategy.BALANCED_PRIORITY
+        self,
+        city: CityState,
+        strategy: AllocationStrategy = AllocationStrategy.BALANCED_PRIORITY,
     ) -> MultiAgentCouncilReport:
-        fire_report = self.fire_agent.analyze(city)
-        infra_report = self.infra_agent.analyze(city)
+        fire_report = self.fire_agent.assess(city)
+        infra_report = self.infra_agent.assess(city)
 
-        fire_map = {r.zone_id: r for r in fire_report.zone_recommendations}
-        infra_map = {r.zone_id: r for r in infra_report.zone_recommendations}
-        max_pop = max(z.population for z in city.zones)
+        fire_by_zone = {r.zone_id: r for r in fire_report.zone_recommendations}
+        infra_by_zone = {r.zone_id: r for r in infra_report.zone_recommendations}
+        max_pop = max((z.population for z in city.zones), default=1)
 
-        scored_zones = []
+        alt_strategy = ALTERNATIVE_POLICY_MAP[strategy]
+
+        # Detect explicit inter-agent disagreements (divergence >= 12 urgency points)
+        conflicts: List[AgentConflictRecord] = []
         for zone in city.zones:
-            f_rec = fire_map[zone.zone_id]
-            i_rec = infra_map[zone.zone_id]
-            p_score = self._compute_strategy_priority(
-                zone, f_rec.urgency_score, i_rec.urgency_score, max_pop, strategy
-            )
-            scored_zones.append((zone, f_rec, i_rec, p_score))
+            f_rec = fire_by_zone[zone.zone_id]
+            i_rec = infra_by_zone[zone.zone_id]
+            delta = round(abs(f_rec.urgency_score - i_rec.urgency_score), 2)
+            if delta >= 12.0:
+                if f_rec.urgency_score > i_rec.urgency_score:
+                    winner = "Fire & Emergency"
+                    reason = (
+                        f"Life-safety & medical urgency ({f_rec.urgency_score}) exceeded utility stress ({i_rec.urgency_score}) "
+                        f"by {delta} pts; prioritized immediate triage & hydration over grid stabilization."
+                    )
+                else:
+                    winner = "Infrastructure & Utilities"
+                    reason = (
+                        f"Substation/water-grid stress ({i_rec.urgency_score}) exceeded triage urgency ({f_rec.urgency_score}) "
+                        f"by {delta} pts; prioritized utility reinforcement to prevent cascading outage."
+                    )
+                conflicts.append(
+                    AgentConflictRecord(
+                        zone_id=zone.zone_id,
+                        zone_name=zone.name,
+                        fire_urgency=f_rec.urgency_score,
+                        infra_urgency=i_rec.urgency_score,
+                        divergence_delta=delta,
+                        winning_domain=winner,
+                        arbitration_reason=reason,
+                    )
+                )
 
-        scored_zones.sort(key=lambda item: item[3], reverse=True)
+        # Compute primary ranking and counterfactual alternative ranking
+        scored_zones: List[Tuple[float, ZoneState]] = []
+        alt_scores: Dict[str, float] = {}
+        for zone in city.zones:
+            f_rec = fire_by_zone[zone.zone_id]
+            i_rec = infra_by_zone[zone.zone_id]
+            p_score = self._compute_priority_score(zone, f_rec.urgency_score, i_rec.urgency_score, max_pop, strategy)
+            a_score = self._compute_priority_score(zone, f_rec.urgency_score, i_rec.urgency_score, max_pop, alt_strategy)
+            scored_zones.append((p_score, zone))
+            alt_scores[zone.zone_id] = a_score
 
-        directives: list[ZoneDecisionRecord] = []
-        for rank, (zone, f_rec, i_rec, p_score) in enumerate(scored_zones, start=1):
+        scored_zones.sort(key=lambda item: (-item[0], item[1].zone_id))
+        alt_ordered_ids = [
+            z_id for z_id, _ in sorted(alt_scores.items(), key=lambda kv: (-kv[1], kv[0]))
+        ]
+        alt_rank_map = {z_id: idx for idx, z_id in enumerate(alt_ordered_ids, start=1)}
+
+        directives: List[ZoneDecisionRecord] = []
+        for rank, (p_score, zone) in enumerate(scored_zones, start=1):
+            f_rec = fire_by_zone[zone.zone_id]
+            i_rec = infra_by_zone[zone.zone_id]
+
             merged_bundle = ResourceBundle(
-                water_tankers=i_rec.requested_resources.water_tankers,
+                water_tankers=max(f_rec.requested_resources.water_tankers, i_rec.requested_resources.water_tankers),
                 medical_units=f_rec.requested_resources.medical_units,
-                cooling_units=i_rec.requested_resources.cooling_units,
-                emergency_personnel=f_rec.requested_resources.emergency_personnel,
+                cooling_units=max(f_rec.requested_resources.cooling_units, i_rec.requested_resources.cooling_units),
+                emergency_personnel=max(
+                    f_rec.requested_resources.emergency_personnel,
+                    i_rec.requested_resources.emergency_personnel,
+                ),
                 shelter_capacity=f_rec.requested_resources.shelter_capacity,
             )
 
-            factors = {
-                "risk_score": zone.risk_score,
-                "population": float(zone.population),
-                "vulnerability_pct": round(zone.vulnerability_index * 100.0, 1),
-                "fire_agent_urgency": f_rec.urgency_score,
-                "infra_agent_urgency": i_rec.urgency_score,
-                "strategy_priority_score": p_score,
-            }
+            alt_rank = alt_rank_map[zone.zone_id]
+            alt_score = alt_scores[zone.zone_id]
+            rank_shift = alt_rank - rank
+            score_delta = round(p_score - alt_score, 2)
 
-            reasoning = (
-                f"Ranked #{rank} under '{strategy.value}' (priority {p_score}/100): "
-                f"risk {zone.risk_score}/100, population {zone.population:,}, "
-                f"vulnerability {int(zone.vulnerability_index * 100)}%, "
-                f"Fire Urgency {f_rec.urgency_score}, Infra Urgency {i_rec.urgency_score}."
+            alt_considered = (
+                f"Counterfactual '{alt_strategy.value}' policy (would assign Rank #{alt_rank}, score {alt_score}/100)"
             )
-
-            if rank <= 3:
-                alt = "Defer full resource allocation to preserve central reserve buffer"
-                reject = (
-                    f"Rejected because deferred response in {zone.name} (risk {zone.risk_score}, "
-                    f"temp {zone.ambient_temp_c}°C) risks acute mortality and grid failure."
+            if rank_shift > 0:
+                rejection_reason = (
+                    f"Rejected '{alt_strategy.value}' because it would demote {zone.name} by {rank_shift} "
+                    f"rank(s) (score delta {score_delta:+.2f}), delaying response despite risk {zone.risk_score}/100 "
+                    f"and {int(zone.vulnerability_index * 100)}% vulnerability."
+                )
+            elif rank_shift < 0:
+                rejection_reason = (
+                    f"Rejected '{alt_strategy.value}' (which would elevate {zone.name} by {abs(rank_shift)} rank(s)) "
+                    f"because '{strategy.value}' reallocates scarce units to higher-weighted zones first."
                 )
             else:
-                alt = "Immediate 100% demand fulfillment ahead of higher-ranked zones"
-                reject = (
-                    f"Rejected due to city-wide resource constraints; higher-priority zones (#1-#3) "
-                    f"exhibit greater composite urgency under '{strategy.value}'."
+                rejection_reason = (
+                    f"Both '{strategy.value}' and '{alt_strategy.value}' converge on Rank #{rank} for {zone.name} "
+                    f"(score delta {score_delta:+.2f}), confirming robust priority consensus."
                 )
 
             directives.append(
@@ -111,31 +186,40 @@ class CityAuthorityAgent:
                     priority_rank=rank,
                     priority_score=p_score,
                     risk_score=zone.risk_score,
-                    selected_action=f"{f_rec.recommended_action}; {i_rec.recommended_action}",
+                    selected_action=f"{f_rec.recommended_action} | {i_rec.recommended_action}",
                     recommended_bundle=merged_bundle,
-                    relevant_factors=factors,
-                    reasoning=reasoning,
-                    alternative_considered=alt,
-                    rejection_reason=reject,
+                    relevant_factors={
+                        "risk_score": zone.risk_score,
+                        "ambient_temp_c": zone.ambient_temp_c,
+                        "vulnerability_pct": round(zone.vulnerability_index * 100, 1),
+                        "population": float(zone.population),
+                        "fire_urgency": f_rec.urgency_score,
+                        "infra_urgency": i_rec.urgency_score,
+                        "counterfactual_rank": float(alt_rank),
+                    },
+                    reasoning=(
+                        f"Ranked #{rank} under '{strategy.value}' (priority {p_score}/100): "
+                        f"risk {zone.risk_score}/100, population {zone.population:,}, "
+                        f"vulnerability {int(zone.vulnerability_index * 100)}%, "
+                        f"Fire Urgency {f_rec.urgency_score}, Infra Urgency {i_rec.urgency_score}."
+                    ),
+                    alternative_considered=alt_considered,
+                    rejection_reason=rejection_reason,
                 )
             )
 
-        strategy_explanations = {
-            AllocationStrategy.POPULATION_PRIORITY: "Maximizes raw headcount coverage first; trades off higher per-capita vulnerability in smaller wards.",
-            AllocationStrategy.RISK_PRIORITY: "Targets peak composite hazard scores first; may leave high-population moderate-risk zones partially unserved.",
-            AllocationStrategy.VULNERABILITY_PRIORITY: "Protects socio-economically fragile & elderly populations first; trades off commercial/industrial infrastructure continuity.",
-            AllocationStrategy.BALANCED_PRIORITY: "Jointly weights hazard severity (35%), vulnerability (25%), infrastructure stress (20%), and population scale (20%) to balance equity and risk reduction.",
-        }
+        top = directives[0]
+        city_summary = (
+            f"Council prioritized {top.zone_name} (#1, score {top.priority_score}) across {len(city.zones)} zones "
+            f"using '{strategy.value}', resolving {len(conflicts)} inter-agent divergence(s)."
+        )
 
-        top_zone = directives[0]
         return MultiAgentCouncilReport(
             strategy=strategy,
             fire_emergency_assessment=fire_report,
             infrastructure_assessment=infra_report,
+            detected_conflicts=conflicts,
             authority_directives=directives,
-            city_wide_summary=(
-                f"Council prioritized {top_zone.zone_name} (#1, score {top_zone.priority_score}) "
-                f"across {len(directives)} zones using '{strategy.value}'."
-            ),
-            strategy_tradeoff_explanation=strategy_explanations[strategy],
+            city_wide_summary=city_summary,
+            strategy_tradeoff_explanation=self._strategy_explanation(strategy),
         )

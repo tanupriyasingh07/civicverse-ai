@@ -1,4 +1,4 @@
-﻿import { Bot, Flame, Wrench, Landmark } from 'lucide-react';
+import { AlertTriangle, Bot, Flame, Wrench, Landmark } from 'lucide-react';
 import type { MultiAgentCouncilReport } from '../../types/simulation';
 
 interface AgentCouncilPanelProps {
@@ -17,7 +17,6 @@ export function AgentCouncilPanel({ report, onSelectZone }: AgentCouncilPanelPro
 
   return (
     <div className="space-y-4 p-4 text-xs">
-      {/* Three Agent Cards */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="rounded-xl border border-rose-500/30 bg-slate-900/90 p-3">
           <div className="flex items-center justify-between">
@@ -33,7 +32,7 @@ export function AgentCouncilPanel({ report, onSelectZone }: AgentCouncilPanelPro
           </p>
           {report.fire_emergency_assessment.identified_constraints.map((c, i) => (
             <p key={i} className="mt-1 rounded bg-rose-950/50 px-2 py-1 text-[10px] text-rose-200">
-              • {c}
+              ? {c}
             </p>
           ))}
         </div>
@@ -52,7 +51,7 @@ export function AgentCouncilPanel({ report, onSelectZone }: AgentCouncilPanelPro
           </p>
           {report.infrastructure_assessment.identified_constraints.map((c, i) => (
             <p key={i} className="mt-1 rounded bg-cyan-950/50 px-2 py-1 text-[10px] text-cyan-200">
-              • {c}
+              ? {c}
             </p>
           ))}
         </div>
@@ -71,10 +70,34 @@ export function AgentCouncilPanel({ report, onSelectZone }: AgentCouncilPanelPro
         </div>
       </div>
 
-      {/* Explainable Decision Audit Table */}
+      {report.detected_conflicts && report.detected_conflicts.length > 0 && (
+        <div className="rounded-xl border border-amber-500/35 bg-amber-950/15 p-3">
+          <div className="mb-2 flex items-center gap-1.5 font-bold text-amber-300">
+            <AlertTriangle className="h-4 w-4" /> Inter-Agent Disagreements & Arbitration ({report.detected_conflicts.length})
+          </div>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            {report.detected_conflicts.map((c) => (
+              <div
+                key={c.zone_id}
+                onClick={() => onSelectZone(c.zone_id)}
+                className="cursor-pointer rounded-lg border border-amber-500/25 bg-slate-950/80 p-2.5 hover:border-amber-400/60"
+              >
+                <div className="flex items-center justify-between font-bold text-white">
+                  <span>{c.zone_id} ? {c.zone_name}</span>
+                  <span className="rounded bg-amber-500/20 px-1.5 py-0.5 font-mono text-[10px] text-amber-300">
+                    ? {c.divergence_delta} pts ? {c.winning_domain}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-300">{c.arbitration_reason}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
         <div className="mb-2 flex items-center gap-1.5 font-bold text-slate-200">
-          <Bot className="h-4 w-4 text-sky-400" /> Explainable Authority Directives & Trade-Off Audit
+          <Bot className="h-4 w-4 text-sky-400" /> Explainable Authority Directives & Counterfactual Trade-Off Audit
         </div>
         <div className="space-y-2">
           {report.authority_directives.map((d) => (
@@ -89,7 +112,7 @@ export function AgentCouncilPanel({ report, onSelectZone }: AgentCouncilPanelPro
                     Rank #{d.priority_rank}
                   </span>
                   <span className="font-bold text-white">
-                    {d.zone_id} — {d.zone_name}
+                    {d.zone_id} ? {d.zone_name}
                   </span>
                 </div>
                 <span className="font-mono text-[11px] text-slate-400">
@@ -98,7 +121,7 @@ export function AgentCouncilPanel({ report, onSelectZone }: AgentCouncilPanelPro
               </div>
               <p className="mt-1 text-[11px] text-slate-300">{d.reasoning}</p>
               <p className="mt-1 text-[10px] text-slate-400">
-                <span className="font-semibold text-amber-400">Rejected Alternative:</span> {d.rejection_reason}
+                <span className="font-semibold text-amber-400">Counterfactual Rejected:</span> {d.rejection_reason}
               </p>
             </div>
           ))}

@@ -1,4 +1,4 @@
-﻿export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
 
 export type AllocationStrategy =
   | 'population_priority'
@@ -91,6 +91,16 @@ export interface AgentAssessment {
   executive_summary: string;
 }
 
+export interface AgentConflictRecord {
+  zone_id: string;
+  zone_name: string;
+  fire_urgency: number;
+  infra_urgency: number;
+  divergence_delta: number;
+  winning_domain: string;
+  arbitration_reason: string;
+}
+
 export interface ZoneDecisionRecord {
   decision_id: string;
   zone_id: string;
@@ -110,6 +120,7 @@ export interface MultiAgentCouncilReport {
   strategy: AllocationStrategy;
   fire_emergency_assessment: AgentAssessment;
   infrastructure_assessment: AgentAssessment;
+  detected_conflicts: AgentConflictRecord[];
   authority_directives: ZoneDecisionRecord[];
   city_wide_summary: string;
   strategy_tradeoff_explanation: string;
@@ -126,6 +137,7 @@ export interface SimulationMetrics {
   unmet_demand_pct: number;
   resource_wastage_pct: number;
   allocation_fairness_jain: number;
+  vulnerability_outcome_equity: number;
   estimated_cost_inr_lakhs: number;
   composite_score: number;
   metric_weights: Record<string, number>;
