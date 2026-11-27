@@ -27,6 +27,7 @@ export function App() {
   const [selectedZoneId, setSelectedZoneId] = useState<string>('Z6');
   const [viewMode, setViewMode] = useState<'post' | 'pre'>('post');
   const [activeTab, setActiveTab] = useState<BottomTab>('agents');
+  const [isDrawerExpanded, setIsDrawerExpanded] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -188,7 +189,7 @@ export function App() {
             />
           </div>
 
-          <section className="h-72 shrink-0 flex flex-col border-t border-slate-800 bg-slate-950">
+          <section className={`${isDrawerExpanded ? "h-[74vh]" : "h-72"} shrink-0 flex flex-col border-t border-slate-800 bg-slate-950 transition-all duration-200`}>
             <div className="flex items-center gap-1 border-b border-slate-800 px-3 py-1.5 text-xs">
               <button
                 onClick={() => setActiveTab('agents')}
@@ -215,7 +216,7 @@ export function App() {
                 <History className="h-3.5 w-3.5" /> History &amp; Replay
               </button>
               {result && (
-                <span className="ml-auto flex items-center gap-1 font-mono text-[11px] text-slate-400">
+                <span className="ml-2 flex items-center gap-1 font-mono text-[11px] text-slate-400">
                   <Activity className="h-3 w-3 text-emerald-400" /> {result.simulation_id}
                 </span>
               )}
