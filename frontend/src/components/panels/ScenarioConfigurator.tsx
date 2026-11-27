@@ -47,7 +47,6 @@ export function ScenarioConfigurator({
         </span>
       </div>
 
-      {/* Sliders */}
       <div className="space-y-3 text-xs">
         <div>
           <div className="mb-1 flex justify-between text-slate-300">
@@ -115,7 +114,6 @@ export function ScenarioConfigurator({
         </div>
       </div>
 
-      {/* Response Strategy Selector */}
       <div className="space-y-1.5">
         <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
           Response Allocation Strategy
@@ -125,7 +123,11 @@ export function ScenarioConfigurator({
             <button
               key={s.value}
               onClick={() => onChangeStrategy(s.value)}
-              className={lex flex-col rounded-lg border px-3 py-2 text-left transition }
+              className={`flex flex-col rounded-lg border px-3 py-2 text-left transition ${
+                strategy === s.value
+                  ? 'border-sky-500 bg-sky-500/15 text-white'
+                  : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-700'
+              }`}
             >
               <span className="text-xs font-semibold">{s.label}</span>
               <span className="text-[10px] text-slate-400">{s.desc}</span>
@@ -134,7 +136,6 @@ export function ScenarioConfigurator({
         </div>
       </div>
 
-      {/* 3D State Comparison Toggle */}
       <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/80 p-2 text-xs">
         <span className="flex items-center gap-1.5 text-slate-400">
           <Eye className="h-3.5 w-3.5 text-sky-400" /> 3D Twin State:
@@ -142,20 +143,23 @@ export function ScenarioConfigurator({
         <div className="flex gap-1">
           <button
             onClick={() => onChangeViewMode('pre')}
-            className={ounded px-2 py-1 text-[11px] font-semibold }
+            className={`rounded px-2 py-1 text-[11px] font-semibold ${
+              viewMode === 'pre' ? 'bg-red-500/20 text-red-300 ring-1 ring-red-500/50' : 'text-slate-400'
+            }`}
           >
             Unmitigated Crisis
           </button>
           <button
             onClick={() => onChangeViewMode('post')}
-            className={ounded px-2 py-1 text-[11px] font-semibold }
+            className={`rounded px-2 py-1 text-[11px] font-semibold ${
+              viewMode === 'post' ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50' : 'text-slate-400'
+            }`}
           >
             Post-Response
           </button>
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-2 pt-1">
         <button
           onClick={onRunSimulation}

@@ -10,7 +10,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
 
 export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(${API_BASE_URL}, {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     headers: {
       'Content-Type': 'application/json',
       ...(options?.headers || {}),
@@ -20,7 +20,7 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(API Error (): );
+    throw new Error(`API Error (${response.status}): ${errorBody || response.statusText}`);
   }
 
   return response.json() as Promise<T>;
@@ -39,6 +39,6 @@ export const civicApi = {
       method: 'POST',
       body: JSON.stringify({ scenario }),
     }),
-  getHistory: (limit = 20) => apiFetch<{ runs: SimulationHistoryItem[] }>(/api/simulations/history?limit=),
-  getSimulation: (simulationId: string) => apiFetch<SimulationResult>(/api/simulations/),
+  getHistory: (limit = 20) => apiFetch<{ runs: SimulationHistoryItem[] }>(`/api/simulations/history?limit=${limit}`),
+  getSimulation: (simulationId: string) => apiFetch<SimulationResult>(`/api/simulations/${simulationId}`),
 };

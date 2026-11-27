@@ -117,7 +117,6 @@ export function App() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
-      {/* Top Tactical Command Bar */}
       <header className="flex h-13 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950/95 px-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
@@ -130,7 +129,6 @@ export function App() {
           </div>
         </div>
 
-        {/* Live Outcome KPIs */}
         {result && (
           <div className="hidden items-center gap-4 text-xs lg:flex">
             <div className="rounded-md border border-slate-800 bg-slate-900 px-3 py-1">
@@ -163,9 +161,7 @@ export function App() {
         </div>
       )}
 
-      {/* Main Split Workspace */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Control & Zone Inspector Sidebar */}
         <aside className="w-88 shrink-0 space-y-3 overflow-y-auto border-r border-slate-800 bg-slate-950/95 p-3">
           <ScenarioConfigurator
             scenario={scenario}
@@ -182,7 +178,6 @@ export function App() {
           <ZoneInspectorPanel zone={selectedZone} decision={selectedDecision} />
         </aside>
 
-        {/* Right 3D City Viewport + Bottom Intelligence Drawer */}
         <main className="flex flex-1 flex-col overflow-hidden">
           <div className="relative flex-1">
             <CityScene
@@ -192,26 +187,31 @@ export function App() {
             />
           </div>
 
-          {/* Bottom Tabbed Decision Intelligence Drawer */}
           <section className="h-72 shrink-0 flex flex-col border-t border-slate-800 bg-slate-950">
             <div className="flex items-center gap-1 border-b border-slate-800 px-3 py-1.5 text-xs">
               <button
                 onClick={() => setActiveTab('agents')}
-                className={lex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition }
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition ${
+                  activeTab === 'agents' ? 'bg-sky-500/20 text-sky-300' : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                <Bot className="h-3.5 w-3.5" /> Multi-Agent Council & Decisions
+                <Bot className="h-3.5 w-3.5" /> Multi-Agent Council &amp; Decisions
               </button>
               <button
                 onClick={() => setActiveTab('comparison')}
-                className={lex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition }
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition ${
+                  activeTab === 'comparison' ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
                 <Scale className="h-3.5 w-3.5" /> Strategy Comparison
               </button>
               <button
                 onClick={() => setActiveTab('history')}
-                className={lex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition }
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition ${
+                  activeTab === 'history' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                <History className="h-3.5 w-3.5" /> History & Replay
+                <History className="h-3.5 w-3.5" /> History &amp; Replay
               </button>
               {result && (
                 <span className="ml-auto flex items-center gap-1 font-mono text-[11px] text-slate-400">

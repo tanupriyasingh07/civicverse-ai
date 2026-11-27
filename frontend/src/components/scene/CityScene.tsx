@@ -30,15 +30,13 @@ export function CityScene({ city, selectedZoneId, onSelectZone }: CitySceneProps
         />
         <pointLight position={[-25, 20, -25]} intensity={0.45} color="#38bdf8" />
 
-        {/* Urban Base Ground Plane */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
           <planeGeometry args={[140, 140]} />
           <meshStandardMaterial color="#0b1220" roughness={0.9} />
         </mesh>
 
-        {/* Arterial Road Network Strips */}
         {[-11, 11].map((pos) => (
-          <group key={oads-}>
+          <group key={`roads-${pos}`}>
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[pos, 0.01, 0]}>
               <planeGeometry args={[2.2, 82]} />
               <meshStandardMaterial color="#1e293b" />
@@ -81,7 +79,6 @@ export function CityScene({ city, selectedZoneId, onSelectZone }: CitySceneProps
         />
       </Canvas>
 
-      {/* Bottom-Left 3D Legend Overlay */}
       <div className="pointer-events-none absolute bottom-4 left-4 flex flex-wrap items-center gap-3 rounded-lg border border-slate-800/90 bg-slate-950/85 px-3.5 py-2 text-xs backdrop-blur-md">
         <span className="font-semibold text-slate-400">Heat Risk:</span>
         <span className="flex items-center gap-1.5 text-emerald-400">

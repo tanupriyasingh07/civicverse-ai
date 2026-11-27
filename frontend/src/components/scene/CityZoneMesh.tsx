@@ -20,7 +20,6 @@ export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMes
   const [hovered, setHovered] = useState(false);
   const palette = RISK_COLORS[zone.risk_level] || RISK_COLORS.LOW;
 
-  // Deterministic procedural building blocks per zone
   const buildings = useMemo(() => {
     const seedNum = zone.zone_id.charCodeAt(zone.zone_id.length - 1);
     const cols = 3;
@@ -58,7 +57,6 @@ export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMes
 
   return (
     <group position={[zone.grid_x, 0, zone.grid_z]}>
-      {/* Base Zone Heat-Risk Slab */}
       <mesh
         position={[0, 0.2, 0]}
         receiveShadow
@@ -82,7 +80,6 @@ export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMes
         />
       </mesh>
 
-      {/* Selection Highlight Border */}
       {(isSelected || hovered) && (
         <mesh position={[0, 0.45, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[zone.width * 0.62, zone.width * 0.67, 4]} />
@@ -90,7 +87,6 @@ export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMes
         </mesh>
       )}
 
-      {/* Procedural Urban Buildings */}
       {buildings.map((b, i) => (
         <mesh
           key={i}
@@ -113,7 +109,6 @@ export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMes
         </mesh>
       ))}
 
-      {/* Infrastructure Beacon Towers (Hospitals / Water / Fire / Cooling) */}
       {assets.map((asset, idx) => {
         const beaconColor =
           asset.asset_type === 'hospital'
@@ -137,7 +132,6 @@ export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMes
         );
       })}
 
-      {/* Dispatched Resource Orb Indicator */}
       {totalAssignedUnits > 0 && (
         <mesh position={[6.2, 1.3, -6.2]}>
           <octahedronGeometry args={[0.85, 0]} />
@@ -145,15 +139,18 @@ export function CityZoneMesh({ zone, assets, isSelected, onSelect }: CityZoneMes
         </mesh>
       )}
 
-      {/* Floating Tactical HUD Tag */}
       <Html position={[0, 7.2, 0]} center distanceFactor={65} zIndexRange={[10, 0]}>
         <button
           onClick={() => onSelect(zone.zone_id)}
-          className={lex flex-col items-center rounded-md border px-2.5 py-1 text-left shadow-lg backdrop-blur-md transition }
+          className={`flex flex-col items-center rounded-md border px-2.5 py-1 text-left shadow-lg backdrop-blur-md transition ${
+            isSelected
+              ? 'border-sky-400 bg-slate-900/95 ring-2 ring-sky-400/50'
+              : 'border-slate-700/80 bg-slate-950/85 hover:border-slate-500'
+          }`}
         >
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-bold text-white">{zone.zone_id}</span>
-            <span className={ounded px-1.5 py-0.2 text-[9px] font-extrabold }>
+            <span className={`rounded px-1.5 py-0.2 text-[9px] font-extrabold ${palette.badge}`}>
               {zone.risk_level}
             </span>
           </div>

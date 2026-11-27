@@ -36,7 +36,6 @@ export function HistoryReplayPanel({
 
   return (
     <div className="grid grid-cols-1 gap-4 p-4 text-xs md:grid-cols-2">
-      {/* Timeline Replay Engine */}
       <div className="space-y-2.5 rounded-xl border border-slate-800 bg-slate-900/90 p-3">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 font-bold text-slate-200">
@@ -59,7 +58,11 @@ export function HistoryReplayPanel({
               return (
                 <div
                   key={ev.step}
-                  className={ounded-lg border p-2 transition }
+                  className={`rounded-lg border p-2 transition ${
+                    reached
+                      ? 'border-sky-500/40 bg-slate-950 text-slate-200'
+                      : 'border-slate-800/60 bg-slate-950/30 text-slate-500'
+                  }`}
                 >
                   <div className="flex justify-between font-mono text-[10px]">
                     <span className="font-bold text-sky-400">
@@ -77,7 +80,6 @@ export function HistoryReplayPanel({
         )}
       </div>
 
-      {/* Persisted PostgreSQL/SQLite Run History */}
       <div className="space-y-2.5 rounded-xl border border-slate-800 bg-slate-900/90 p-3">
         <div className="flex items-center gap-1.5 font-bold text-slate-200">
           <History className="h-4 w-4 text-amber-400" /> Persisted Simulation Runs ({history.length})
@@ -90,7 +92,11 @@ export function HistoryReplayPanel({
               <button
                 key={run.simulation_id}
                 onClick={() => onLoadSimulation(run.simulation_id)}
-                className={w-full rounded-lg border p-2.5 text-left transition }
+                className={`w-full rounded-lg border p-2.5 text-left transition ${
+                  currentResult?.simulation_id === run.simulation_id
+                    ? 'border-amber-400/60 bg-amber-500/10'
+                    : 'border-slate-800 bg-slate-950/80 hover:border-slate-700'
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-sky-400">{run.simulation_id}</span>
