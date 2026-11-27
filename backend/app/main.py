@@ -8,6 +8,8 @@ from app.database import models  # noqa: F401
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
+    contact={"name": "Tanupriya Singh", "url": "https://github.com/tanupriyasingh07/civicverse-ai"},
+    license_info={"name": "Proprietary - All Rights Reserved (Tanupriya Singh)"},
     title=settings.APP_NAME,
     description="Multi-Agent Urban Crisis Simulation & Decision Intelligence Platform",
     version="1.0.0",
