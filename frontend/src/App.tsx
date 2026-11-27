@@ -17,7 +17,7 @@ import { StrategyComparisonPanel } from './components/analytics/StrategyComparis
 import { WhatIfTemporalPanel } from './components/analytics/WhatIfTemporalPanel';
 import { HistoryReplayPanel } from './components/panels/HistoryReplayPanel';
 
-type BottomTab = 'council' | 'comparison' | 'whatif' | 'replay';
+type BottomTab = 'agents' | 'comparison' | 'whatif' | 'history';
 
 export function App() {
   const [baselineCity, setBaselineCity] = useState<CityState | null>(null);
