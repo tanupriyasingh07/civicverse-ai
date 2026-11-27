@@ -115,12 +115,7 @@ def get_simulation_details(simulation_id: str, db: Session = Depends(get_db)):
 @router.get("/api/simulations/{simulation_id}/decisions")
 def get_simulation_decisions(simulation_id: str, db: Session = Depends(get_db)):
     result = get_simulation_details(simulation_id, db)
-    return {
-        "simulation_id": result.simulation_id,
-        "strategy": result.strategy,
-        "detected_conflicts": result.council_report.detected_conflicts,
-        "decisions": result.council_report.authority_directives,
-    }
+    return result.council_report.authority_directives
 
 
 @router.post("/api/simulations/compare", response_model=StrategyComparisonReport)
