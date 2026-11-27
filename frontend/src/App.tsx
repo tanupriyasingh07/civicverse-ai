@@ -215,6 +215,22 @@ export function App() {
               >
                 <History className="h-3.5 w-3.5" /> History &amp; Replay
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('whatif')}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition ${
+                  activeTab === 'whatif' ? 'bg-purple-500/20 text-purple-300' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Temporal & What-If Lab
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDrawerExpanded((prev) => !prev)}
+                className="ml-auto rounded-md border border-slate-700 bg-slate-800/90 px-2.5 py-1 text-[11px] font-semibold text-sky-300 hover:border-sky-500/50 hover:bg-slate-800"
+              >
+                {isDrawerExpanded ? 'Restore Split View' : 'Expand Panel'}
+              </button>
               {result && (
                 <span className="ml-2 flex items-center gap-1 font-mono text-[11px] text-slate-400">
                   <Activity className="h-3 w-3 text-emerald-400" /> {result.simulation_id}
