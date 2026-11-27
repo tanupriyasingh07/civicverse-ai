@@ -1,5 +1,5 @@
-﻿import asyncio
-from typing import List, Optional
+import asyncio
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -10,140 +10,146 @@ from app.history.repository import (
     save_simulation_result,
 )
 from app.scenarios.heatwave import HeatwaveScenarioConfig
-from app.schemas.agents import AllocationStrategy, ZoneDecisionRecord
-from app.schemas.city import CityState, ZoneState
-from app.services.cache import cache_service
+from app.schemas.agents import AllocationStrategy
+from app.services.cache import get_cached_simulation, set_cached_simulation
 from app.simulation.city_generator import create_default_city
 from app.simulation.engine import (
+    CounterfactualComparisonReport,
     SimulationEngine,
     SimulationResult,
     StrategyComparisonReport,
+    WhatIfModifications,
 )
 
-router = APIRouter(prefix="/api", tags=["CivicVerse Simulation"])
+router = APIRouter()
 engine = SimulationEngine()
 
 
 class RunSimulationRequest(BaseModel):
-    scenario: HeatwaveScenarioConfig = HeatwaveScenarioConfig()
+    scenario: Optional[HeatwaveScenarioConfig] = None
     strategy: AllocationStrategy = AllocationStrategy.BALANCED_PRIORITY
 
 
 class CompareStrategiesRequest(BaseModel):
-    scenario: HeatwaveScenarioConfig = HeatwaveScenarioConfig()
-    strategies: Optional[List[AllocationStrategy]] = None
+    scenario: Optional[HeatwaveScenarioConfig] = None
 
 
-@router.get("/city", response_model=CityState)
-def get_city_baseline():
+class WhatIfRequest(BaseModel):
+    scenario: Optional[HeatwaveScenarioConfig] = None
+    strategy: AllocationStrategy = AllocationStrategy.BALANCED_PRIORITY
+    modifications: WhatIfModifications
+
+
+@router.get("/api/city")
+def get_baseline_city():
     return create_default_city()
 
 
-@router.get("/zones", response_model=List[ZoneState])
+@router.get("/api/zones")
 def get_city_zones():
-    return create_default_city().zones
-
-
-@router.get("/zones/{zone_id}", response_model=ZoneState)
-def get_zone_detail(zone_id: str):
     city = create_default_city()
-    zone = next((z for z in city.zones if z.zone_id.upper() == zone_id.upper()), None)
-    if not zone:
-        raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
-    return zone
+    return {"city_id": city.city_id, "zones": city.zones}
 
 
-@router.get("/scenarios")
+@router.get("/api/zones/{zone_id}")
+def get_single_zone(zone_id: str):
+    city = create_default_city()
+    for zone in city.zones:
+        if zone.zone_id.lower() == zone_id.lower():
+            assets = [a for a in city.infrastructure if a.zone_id == zone.zone_id]
+            return {"zone": zone, "infrastructure": assets}
+    raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
+
+
+@router.get("/api/scenarios")
 def list_available_scenarios():
-    return [
-        {
-            "scenario_id": "heatwave_mvp_v1",
-            "name": "Severe Urban Heatwave Crisis",
-            "crisis_type": "urban_heatwave",
-            "status": "active",
-            "default_config": HeatwaveScenarioConfig().model_dump(),
-        },
-        {
-            "scenario_id": "urban_flood_planned",
-            "name": "Monsoon Flash Flood (Architecture Ready)",
-            "crisis_type": "urban_flood",
-            "status": "planned",
-        },
-    ]
+    return {
+        "scenarios": [
+            {
+                "scenario_id": "heatwave_mvp_v1",
+                "name": "Severe Urban Heatwave Crisis",
+                "crisis_type": "urban_heatwave",
+                "status": "active",
+                "default_config": HeatwaveScenarioConfig().model_dump(),
+            }
+        ]
+    }
 
 
-@router.post("/simulations/run", response_model=SimulationResult)
+@router.post("/api/simulations/run", response_model=SimulationResult)
 def run_simulation(request: RunSimulationRequest, db: Session = Depends(get_db)):
     result = engine.run_simulation(scenario=request.scenario, strategy=request.strategy)
     save_simulation_result(db, result)
-    cache_service.set_json(f"sim:{result.simulation_id}", result.model_dump(mode="json"))
+    set_cached_simulation(result.simulation_id, result.model_dump(mode="json"))
     return result
 
 
-@router.get("/simulations/history")
-def fetch_simulation_history(limit: int = 25, db: Session = Depends(get_db)):
+@router.post("/api/simulations/what-if", response_model=CounterfactualComparisonReport)
+def run_what_if_simulation(request: WhatIfRequest):
+    cfg = request.scenario or HeatwaveScenarioConfig()
+    return engine.run_what_if(
+        base_scenario=cfg,
+        base_strategy=request.strategy,
+        modifications=request.modifications,
+    )
+
+
+@router.get("/api/simulations/history")
+def get_simulation_history(limit: int = 25, db: Session = Depends(get_db)):
     return {"runs": list_simulation_history(db, limit=limit)}
 
 
-@router.get("/simulations/{simulation_id}", response_model=SimulationResult)
-def fetch_simulation(simulation_id: str, db: Session = Depends(get_db)):
-    cached = cache_service.get_json(f"sim:{simulation_id}")
+@router.get("/api/simulations/{simulation_id}", response_model=SimulationResult)
+def get_simulation_details(simulation_id: str, db: Session = Depends(get_db)):
+    cached = get_cached_simulation(simulation_id)
     if cached:
         return SimulationResult.model_validate(cached)
-    result = get_simulation_by_id(db, simulation_id)
-    if not result:
+
+    record = get_simulation_by_id(db, simulation_id)
+    if not record:
         raise HTTPException(status_code=404, detail=f"Simulation '{simulation_id}' not found")
-    return result
+    set_cached_simulation(simulation_id, record.model_dump(mode="json"))
+    return record
 
 
-@router.get("/simulations/{simulation_id}/decisions", response_model=List[ZoneDecisionRecord])
-def fetch_simulation_decisions(simulation_id: str, db: Session = Depends(get_db)):
-    result = fetch_simulation(simulation_id, db)
-    return result.council_report.authority_directives
+@router.post("/api/simulations/compare", response_model=StrategyComparisonReport)
+def compare_simulation_strategies(request: CompareStrategiesRequest, db: Session = Depends(get_db)):
+    report = engine.compare_strategies(scenario=request.scenario)
+    for sim_res in report.results_by_strategy.values():
+        save_simulation_result(db, sim_res)
+        set_cached_simulation(sim_res.simulation_id, sim_res.model_dump(mode="json"))
+    return report
 
 
-@router.post("/simulations/compare", response_model=StrategyComparisonReport)
-def compare_strategies(request: CompareStrategiesRequest, db: Session = Depends(get_db)):
-    comparison = engine.compare_strategies(
-        scenario=request.scenario, strategies=request.strategies
-    )
-    for res in comparison.results_by_strategy.values():
-        save_simulation_result(db, res)
-    return comparison
-
-
-@router.post("/simulations/{simulation_id}/replay")
+@router.post("/api/simulations/{simulation_id}/replay")
 def replay_simulation(simulation_id: str, db: Session = Depends(get_db)):
-    result = fetch_simulation(simulation_id, db)
+    result = get_simulation_details(simulation_id, db)
     return {
         "simulation_id": result.simulation_id,
         "scenario": result.scenario,
         "strategy": result.strategy,
         "timeline_events": result.timeline_events,
-        "initial_crisis_city": result.initial_crisis_city,
-        "final_city": result.final_city,
+        "temporal_trajectory": result.temporal_trajectory,
         "metrics": result.metrics,
     }
 
 
-ws_router = APIRouter()
-
-
-@ws_router.websocket("/ws/simulation/{simulation_id}")
-async def simulation_replay_ws(websocket: WebSocket, simulation_id: str, db: Session = Depends(get_db)):
+@router.websocket("/ws/simulation/{simulation_id}")
+async def simulation_stream(websocket: WebSocket, simulation_id: str, db: Session = Depends(get_db)):
     await websocket.accept()
     try:
-        result = get_simulation_by_id(db, simulation_id)
-        if not result:
-            await websocket.send_json({"type": "error", "message": "Simulation not found"})
-            await websocket.close()
-            return
-
+        result = get_simulation_details(simulation_id, db)
         for event in result.timeline_events:
             await websocket.send_json({"type": "timeline_event", "data": event.model_dump()})
-            await asyncio.sleep(0.35)
-
-        await websocket.send_json({"type": "completed", "data": result.model_dump(mode="json")})
-        await websocket.close()
+            await asyncio.sleep(0.25)
+        await websocket.send_json(
+            {
+                "type": "simulation_complete",
+                "simulation_id": result.simulation_id,
+                "metrics": result.metrics.model_dump(),
+            }
+        )
     except WebSocketDisconnect:
         pass
+    finally:
+        await websocket.close()
