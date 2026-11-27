@@ -80,8 +80,8 @@ class CityAuthorityAgent:
         city: CityState,
         strategy: AllocationStrategy = AllocationStrategy.BALANCED_PRIORITY,
     ) -> MultiAgentCouncilReport:
-        fire_report = self.fire_agent.assess(city)
-        infra_report = self.infra_agent.assess(city)
+        fire_report = self.fire_agent.evaluate(city)
+        infra_report = self.infra_agent.evaluate(city)
 
         fire_by_zone = {r.zone_id: r for r in fire_report.zone_recommendations}
         infra_by_zone = {r.zone_id: r for r in infra_report.zone_recommendations}
